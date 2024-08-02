@@ -1,0 +1,365 @@
+// struct World {
+//     players: Vec<Player>,
+// }
+use crate::{tag::Tag, GameContext, Hero};
+
+pub enum TargetType {
+    SelfTarget,
+    OneMonsterTarget,
+    MonstersTarget,
+}
+
+pub trait Card {
+    fn card_id(&self) -> u64;
+    fn card_tag(&self) -> Tag;
+    fn card_restriction(&self, ctx: &mut GameContext, hero: Hero) -> bool;
+    fn target_type(&self) -> TargetType;
+}
+
+// 刺击卡牌
+pub struct StabCard {
+    pub id: u64,
+    pub tag: Tag,
+    pub damage: u32,
+}
+
+impl StabCard {
+    pub fn new(id: u64) -> Self {
+        Self {
+            id,
+            tag: Tag::zh("刺击").en("Stab"),
+            damage: 5,
+        }
+    }
+
+    pub fn card_exec(&self, context: &mut GameContext, monster_id: u64) {
+        // 根据 monster_id 查找目标敌人
+        let target_enemy = context
+            .current_enemies
+            .iter_mut()
+            .find(|enemy| enemy.entity_id == monster_id);
+
+        if let Some(target_enemy) = target_enemy {
+            target_enemy.monster.take_damage(self.damage);
+        }
+    }
+}
+
+impl Card for StabCard {
+    fn card_id(&self) -> u64 {
+        self.id
+    }
+    fn target_type(&self) -> TargetType {
+        TargetType::OneMonsterTarget
+    }
+
+    fn card_tag(&self) -> Tag {
+        self.tag.clone()
+    }
+
+    // 所有英雄都可以使用刺击
+    fn card_restriction(&self, _ctx: &mut GameContext, _hero: Hero) -> bool {
+        true
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Lang {
+    ZH,
+    EN,
+    JA,
+    KO,
+    FR,
+    RU,
+    ES,
+    PT,
+    IT,
+    DE,
+    TR,
+    AR,
+}
+
+const LANG_PRIORITY: [Lang; 12] = [
+    Lang::ZH,
+    Lang::EN,
+    Lang::JA,
+    Lang::KO,
+    Lang::FR,
+    Lang::RU,
+    Lang::ES,
+    Lang::PT,
+    Lang::IT,
+    Lang::DE,
+    Lang::TR,
+    Lang::AR,
+];
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Eq, Ord)]
+pub struct Tag {
+    info_zh: Option<String>,
+    info_en: Option<String>,
+    info_ja: Option<String>,
+    info_ko: Option<String>,
+    info_fr: Option<String>,
+    info_ru: Option<String>,
+    info_es: Option<String>,
+    info_pt: Option<String>,
+    info_it: Option<String>,
+    info_de: Option<String>,
+    info_tr: Option<String>,
+    info_ar: Option<String>,
+}
+
+impl std::fmt::Display for Tag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.string().fmt(f)
+    }
+}
+
+impl Tag {
+    pub fn string(&self) -> String {
+        for lang in LANG_PRIORITY.iter() {
+            let info = match lang {
+                Lang::ZH => &self.info_zh,
+                Lang::EN => &self.info_en,
+                Lang::JA => &self.info_ja,
+                Lang::KO => &self.info_ko,
+                Lang::FR => &self.info_fr,
+                Lang::RU => &self.info_ru,
+                Lang::ES => &self.info_es,
+                Lang::PT => &self.info_pt,
+                Lang::IT => &self.info_it,
+                Lang::DE => &self.info_de,
+                Lang::TR => &self.info_tr,
+                Lang::AR => &self.info_ar,
+            };
+            if let Some(text) = info {
+                return text.to_string();
+            }
+        }
+        unreachable!("tag not found");
+    }
+
+    pub fn new() -> Self {
+        Self {
+            info_zh: None,
+            info_en: None,
+            info_ja: None,
+            info_ko: None,
+            info_fr: None,
+            info_ru: None,
+            info_es: None,
+            info_pt: None,
+            info_it: None,
+            info_de: None,
+            info_tr: None,
+            info_ar: None,
+        }
+    }
+
+    pub fn zh(text: impl Into<String>) -> Self {
+        Self {
+            info_zh: Some(text.into()),
+            ..Default::default()
+        }
+    }
+
+    pub fn en(mut self, text: impl Into<String>) -> Self {
+        self.info_en = Some(text.into());
+        self
+    }
+
+    pub fn ja(mut self, text: impl Into<String>) -> Self {
+        self.info_ja = Some(text.into());
+        self
+    }
+
+    pub fn ko(mut self, text: impl Into<String>) -> Self {
+        self.info_ko = Some(text.into());
+        self
+    }
+
+    pub fn fr(mut self, text: impl Into<String>) -> Self {
+        self.info_fr = Some(text.into());
+        self
+    }
+
+    pub fn ru(mut self, text: impl Into<String>) -> Self {
+        self.info_ru = Some(text.into());
+        self
+    }
+
+    pub fn es(mut self, text: impl Into<String>) -> Self {
+        self.info_es = Some(text.into());
+        self
+    }
+
+    pub fn pt(mut self, text: impl Into<String>) -> Self {
+        self.info_pt = Some(text.into());
+        self
+    }
+
+    pub fn it(mut self, text: impl Into<String>) -> Self {
+        self.info_it = Some(text.into());
+        self
+    }
+
+    pub fn de(mut self, text: impl Into<String>) -> Self {
+        self.info_de = Some(text.into());
+        self
+    }
+
+    pub fn tr(mut self, text: impl Into<String>) -> Self {
+        self.info_tr = Some(text.into());
+        self
+    }
+
+    pub fn ar(mut self, text: impl Into<String>) -> Self {
+        self.info_ar = Some(text.into());
+        self
+    }
+
+    pub fn build(self) -> Self {
+        self
+    }
+}
+use std::collections::VecDeque;
+
+use cards::Card;
+use seed::Seed; // 引入种子生成器，用于游戏随机性
+
+pub mod cards;
+pub mod game; // 游戏逻辑模块
+pub mod seed; // 种子生成器模块
+pub mod tag; // 标签结构体模块
+
+/// 英雄枚举，表示不同的可选英雄角色
+pub enum Hero {
+    InfinityWarrior, // 无尽剑士
+    Aquamancer,      // 水魔导士（示例，可替换为其他英雄）
+}
+
+/// AI 执行器结构体，用于处理敌人的 AI 逻辑
+pub struct AIExecutor {}
+
+/// Buff 枚举，表示不同的增益效果
+pub enum Buff {
+    Regeneration(u32), // 生命回复，括号内为回复量
+    Anger(u32),        // 愤怒，括号内为愤怒值或持续回合数
+    Strength(u32),     // 力量，括号内为力量加成值
+    Counterwound(u32), // 反伤，括号内为反伤数值
+    Sharpness(u32),    // 锋利，括号内为锋利度或攻击加成值
+}
+
+/// Debuff 枚举，表示不同的减益效果
+pub enum Debuff {
+    Poison(u32), // 中毒，括号内为中毒层数或持续回合数
+}
+
+/// 特殊效果枚举，表示一些特殊效果，例如技能或道具的效果
+pub enum SpecialEffect {}
+
+/// 怪物 Trait，定义了怪物的行为
+pub trait Monster {
+    /// 获取怪物的 AI 执行器
+     fn ai(&self) -> AIExecutor;
+
+     fn take_damage(&mut self, damage: u32);
+}
+
+/// 敌人上下文结构体，包含敌人的相关信息
+pub struct EnemyContext {
+    pub entity_id: u64,            // 敌人的唯一 ID
+    pub monster: Box<dyn Monster>, // 怪物实例，使用动态分发以支持不同类型的怪物
+}
+
+pub struct BaseState {
+    pub round_num: u32,      // 当前回合数
+    pub layer_num: u32,      // 当前层数
+    pub base_step_num: u128, // 当前基础步数
+    pub current_seed: Seed,  // 当前游戏种子
+}
+
+/// 游戏上下文结构体，包含当前游戏状态和相关信息
+pub struct GameContext {
+    pub is_game_on: bool, // 游戏是否正在进行
+
+    pub base_state: BaseState, // 游戏状态
+
+    pub save_path: String,                  // 游戏存档路径
+    pub gamer: String,                      // 玩家名称
+    pub hero: HeroContext,                  // 英雄上下文
+    pub current_enemies: Vec<EnemyContext>, // 当前遇到的敌人列表
+    pub deck: Vec<DeckContext>,             // 卡组
+    pub environment: EnvironmentContext,    // 环境上下文
+}
+
+pub struct DeckContext {
+    pub draw_pile: VecDeque<Box<dyn Card>>,    // 抽牌堆
+    pub discard_pile: VecDeque<Box<dyn Card>>, // 弃牌堆
+    pub hand: Vec<Box<dyn Card>>,              // 手牌
+}
+
+/// 环境上下文结构体，包含游戏环境的相关信息
+pub struct EnvironmentContext {}
+
+/// 游戏状态结构体，包含游戏是否正在进行、存档路径、当前种子和游戏上下文等信息
+
+/// 英雄上下文结构体，包含英雄的相关信息
+pub struct HeroContext {
+    pub hero: Hero,                         // 英雄类型
+    pub entity_id: u64,                     // 英雄的唯一 ID
+    pub health: u32,                        // 英雄当前生命值
+    pub buff: Vec<Buff>,                    // 英雄身上的增益效果列表
+    pub debuff: Vec<Debuff>,                // 英雄身上的减益效果列表
+    pub special_effect: Vec<SpecialEffect>, // 英雄身上的特殊效果列表
+}
+
+fn main() {} // 游戏主函数入口
+use rand::{RngCore, SeedableRng};
+use rand_chacha::ChaCha8Rng;
+
+pub struct Seed {
+    pub root_seed: u64,
+    pub step: u128,
+    pub rng: ChaCha8Rng,
+}
+
+impl Seed {
+    pub fn new(seed: Option<u64>) -> Self {
+        let seed = seed.unwrap_or_else(|| rand::thread_rng().next_u64());
+        Self {
+            root_seed: seed,
+            step: 0,
+            rng: ChaCha8Rng::seed_from_u64(seed),
+        }
+    }
+    pub fn from_string(seed_str: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        if seed_str.len() != 12 {
+            return Err("Seed string must be 12 characters long".into());
+        }
+        let seed = u64::from_str_radix(seed_str, 36)?;
+        Ok(Self::new(Some(seed)))
+    }
+
+    pub fn next_id(&mut self) -> u64 {
+        self.step += 1;
+        self.rng.next_u64()
+    }
+}
+
+#[test]
+fn bench_test() {
+    let mut seed = Seed::new(Some(12345));
+    let iterations = 1_000_000;
+
+    let start = std::time::Instant::now();
+    for _ in 0..iterations {
+        seed.next_id();
+    }
+    let duration = start.elapsed();
+
+    println!("Generated {} random IDs in {:?}", iterations, duration);
+    println!(
+        "Average time per random ID generation: {:?}",
+        duration / iterations as u32
+    );
+}
